@@ -19,11 +19,12 @@ type Data struct {
 
 // Redirects struct
 type Redirects struct {
-	Number     int    `json:"number"`
-	StatusCode int    `json:"statuscode,omitempty"`
-	URL        string `json:"url,omitempty"`
-	Protocol   string `json:"protocol,omitempty"`
-	TLSVersion string `json:"tlsversion,omitempty"` // Dont know if TLS version stays.
+	Number            int    `json:"number"`
+	StatusCode        int    `json:"statuscode,omitempty"`
+	URL               string `json:"url,omitempty"`
+	Protocol          string `json:"protocol,omitempty"`
+	TLSVersion        string `json:"tlsversion,omitempty"` // Dont know if TLS version stays.
+	InsecureDowngrade bool   `json:"insecure_downgrade,omitempty"`
 }
 
 const maxRedirects = 20
@@ -49,6 +50,8 @@ func Get(redirecturl string) *Data {
 	for i := range redirectIndices {
 		redirectIndices[i] = i
 	}
+
+	previousURL := ""
 
 	// Loop through up to 20 redirects using range
 	for i := range redirectIndices {
@@ -77,7 +80,7 @@ func Get(redirecturl string) *Data {
 		}
 
 		// Set the User-Agent header
-		req.Header.Set("User-Agent", "Mozilla/5.0 (https://github.com/sbroekhoven/redirects)")
+		req.Header.Set("User-Agent", "Mozilla/5.0 (https://github.com/tonesploit/redirects)")
 
 		// Do the request
 		resp, err := client.Do(req)
@@ -105,6 +108,13 @@ func Get(redirecturl string) *Data {
 		} else {
 			redirect.TLSVersion = "N/A"
 		}
+
+		// Flag if a previous https hop redirected down to http
+		if previousURL != "" && strings.HasPrefix(previousURL, "https://") && strings.HasPrefix(redirecturl, "http://") {
+			redirect.InsecureDowngrade = true
+		}
+
+		previousURL = redirecturl
 
 		// Add the Redirects struct to the slice of Redirects structs
 		r.Redirects = append(r.Redirects, redirect)
